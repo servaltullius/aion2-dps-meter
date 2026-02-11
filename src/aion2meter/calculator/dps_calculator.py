@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from aion2meter.models import DamageEvent, DpsSnapshot
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 class RealtimeDpsCalculator:
     """DpsEngine Protocol을 구현하는 실시간 DPS 계산기.
@@ -77,6 +80,7 @@ class RealtimeDpsCalculator:
 
     def _reset_state(self) -> None:
         """내부 상태를 초기화한다."""
+        logger.info("전투 리셋")
         self._total_damage = 0
         self._event_count = 0
         self._peak_dps = 0.0

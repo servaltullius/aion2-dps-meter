@@ -9,6 +9,7 @@ from pathlib import Path
 from PyQt6.QtWidgets import QApplication
 
 from aion2meter.config import ConfigManager
+from aion2meter.logging_config import setup_logging
 from aion2meter.io.combat_logger import CombatLogExporter
 from aion2meter.models import AppConfig, DpsSnapshot, ROI
 from aion2meter.pipeline.pipeline import DpsPipeline
@@ -24,6 +25,7 @@ class App:
     """앱 클래스: 설정 로드, 파이프라인↔오버레이 연결."""
 
     def __init__(self) -> None:
+        setup_logging()
         self._app = QApplication(sys.argv)
         self._app.setQuitOnLastWindowClosed(False)
 

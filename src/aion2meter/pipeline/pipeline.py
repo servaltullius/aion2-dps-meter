@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 import queue
 import time
+
+logger = logging.getLogger(__name__)
 
 from PyQt6.QtCore import QObject, QThread, pyqtSignal
 
@@ -36,7 +39,7 @@ class CaptureWorker(QThread):
                 frame = self._capturer.capture(self._roi)
                 self.frame_captured.emit(frame)
             except Exception:
-                pass
+                logger.warning("캡처 실패", exc_info=True)
             elapsed = time.monotonic() - start
             sleep_time = interval - elapsed
             if sleep_time > 0:
@@ -82,7 +85,7 @@ class OcrWorker(QThread):
             try:
                 self._queue.put_nowait(frame)
             except queue.Full:
-                pass
+                logger.debug("프레임 큐 오버플로우")
 
     def run(self) -> None:
         self._running = True
