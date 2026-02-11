@@ -338,3 +338,75 @@ class TestEventHistory:
         h2 = calc.get_event_history()
         assert h1 is not h2
         assert h1 == h2
+
+
+class TestDpsTimeline:
+    """DPS 타임라인 추적."""
+
+    def test_empty_timeline_initially(self):
+        calc = RealtimeDpsCalculator()
+        assert calc.get_dps_timeline() == []
+
+    def test_timeline_grows_with_events(self):
+        calc = RealtimeDpsCalculator()
+        calc.add_events([_make_event(timestamp=10.0, damage=1000)])
+        calc.add_events([_make_event(timestamp=12.0, damage=2000)])
+        timeline = calc.get_dps_timeline()
+        assert len(timeline) == 2
+
+    def test_timeline_contains_elapsed_and_dps(self):
+        calc = RealtimeDpsCalculator()
+        calc.add_events([_make_event(timestamp=10.0, damage=1000)])
+        calc.add_events([_make_event(timestamp=12.0, damage=2000)])
+        timeline = calc.get_dps_timeline()
+        assert timeline[0][0] == pytest.approx(0.0)
+        assert timeline[1][0] == pytest.approx(2.0)
+        assert timeline[0][1] > 0
+        assert timeline[1][1] > 0
+
+    def test_timeline_cleared_on_reset(self):
+        calc = RealtimeDpsCalculator()
+        calc.add_events([_make_event(timestamp=1.0, damage=1000)])
+        calc.reset()
+        assert calc.get_dps_timeline() == []
+
+    def test_timeline_cleared_on_auto_reset(self):
+        calc = RealtimeDpsCalculator(idle_timeout=5.0)
+        calc.add_events([_make_event(timestamp=1.0, damage=1000)])
+        calc.add_events([_make_event(timestamp=20.0, damage=500)])
+        timeline = calc.get_dps_timeline()
+        assert len(timeline) == 1
+
+    def test_snapshot_includes_recent_timeline(self):
+        calc = RealtimeDpsCalculator()
+        calc.add_events([_make_event(timestamp=10.0, damage=1000)])
+        snap = calc.add_events([_make_event(timestamp=12.0, damage=2000)])
+        assert len(snap.dps_timeline) == 2
+        assert snap.dps_timeline[0][0] == pytest.approx(0.0)
+        assert snap.dps_timeline[1][0] == pytest.approx(2.0)
+
+    def test_snapshot_timeline_capped_at_120(self):
+        calc = RealtimeDpsCalculator(idle_timeout=300.0)
+        for i in range(150):
+            calc.add_events([_make_event(timestamp=float(i), damage=100)])
+        snap = calc.add_events([_make_event(timestamp=200.0, damage=100)])
+        assert len(snap.dps_timeline) <= 120
+        assert len(calc.get_dps_timeline()) == 151
+
+
+class TestBoundedEventHistory:
+    """이벤트 히스토리 최대 크기 제한."""
+
+    def test_history_capped_at_max(self):
+        calc = RealtimeDpsCalculator(idle_timeout=99999)
+        events = [_make_event(timestamp=float(i), damage=10) for i in range(12000)]
+        calc.add_events(events)
+        history = calc.get_event_history()
+        assert len(history) <= 10000
+
+    def test_history_keeps_recent_events(self):
+        calc = RealtimeDpsCalculator(idle_timeout=99999)
+        events = [_make_event(timestamp=float(i), damage=i + 1) for i in range(12000)]
+        calc.add_events(events)
+        history = calc.get_event_history()
+        assert history[-1].damage == 12000

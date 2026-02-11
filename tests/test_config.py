@@ -174,3 +174,26 @@ class TestConfigSave:
         toml_text = manager.default_path.read_text(encoding="utf-8")
         assert "overlay_x" not in toml_text
         assert "overlay_y" not in toml_text
+
+
+class TestHotkeyConfig:
+    """핫키 설정 직렬화/역직렬화."""
+
+    def test_default_hotkeys(self):
+        config = AppConfig()
+        assert config.hotkey_overlay == "<ctrl>+<shift>+o"
+        assert config.hotkey_reset == "<ctrl>+<shift>+r"
+        assert config.hotkey_breakdown == "<ctrl>+<shift>+b"
+
+    def test_hotkey_roundtrip(self, tmp_path):
+        config = AppConfig(
+            hotkey_overlay="<ctrl>+<alt>+d",
+            hotkey_reset="<ctrl>+<alt>+r",
+            hotkey_breakdown="<ctrl>+<alt>+b",
+        )
+        mgr = ConfigManager(default_path=tmp_path / "config.toml")
+        mgr.save(config)
+        loaded = mgr.load()
+        assert loaded.hotkey_overlay == "<ctrl>+<alt>+d"
+        assert loaded.hotkey_reset == "<ctrl>+<alt>+r"
+        assert loaded.hotkey_breakdown == "<ctrl>+<alt>+b"

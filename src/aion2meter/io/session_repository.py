@@ -39,6 +39,12 @@ CREATE TABLE IF NOT EXISTS skill_summaries (
     hit_count   INTEGER NOT NULL,
     PRIMARY KEY (session_id, skill)
 );
+CREATE TABLE IF NOT EXISTS session_timeline (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id  INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    elapsed     REAL NOT NULL,
+    dps         REAL NOT NULL
+);
 """
 
 
@@ -116,6 +122,18 @@ class SessionRepository:
             ],
         )
 
+        # 타임라인 삽입
+        if snapshot.dps_timeline:
+            self._conn.executemany(
+                "INSERT INTO session_timeline "
+                "(session_id, elapsed, dps) "
+                "VALUES (?, ?, ?)",
+                [
+                    (session_id, elapsed, dps)
+                    for elapsed, dps in snapshot.dps_timeline
+                ],
+            )
+
         self._conn.commit()
         return session_id
 
@@ -158,3 +176,12 @@ class SessionRepository:
             "DELETE FROM sessions WHERE id = ?", (session_id,)
         )
         self._conn.commit()
+
+    def get_session_timeline(self, session_id: int) -> list[dict]:
+        """세션의 DPS 타임라인을 시간순으로 반환한다."""
+        cur = self._conn.execute(
+            "SELECT * FROM session_timeline "
+            "WHERE session_id = ? ORDER BY elapsed",
+            (session_id,),
+        )
+        return [dict(row) for row in cur.fetchall()]

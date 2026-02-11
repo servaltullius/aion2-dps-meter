@@ -181,3 +181,58 @@ class TestDeleteSession:
         sid = repo.save_session(_sample_events(), _sample_snapshot())
         repo.delete_session(sid)
         assert repo.get_skill_summary(sid) == []
+
+
+class TestSessionTimeline:
+    """session_timeline 테이블 검증."""
+
+    def test_save_includes_timeline(self, repo: SessionRepository) -> None:
+        snap = DpsSnapshot(
+            dps=2750.0,
+            total_damage=5500,
+            elapsed_seconds=2.0,
+            peak_dps=2750.0,
+            combat_active=False,
+            skill_breakdown={"검격": 2300, "마법": 3200},
+            event_count=3,
+            dps_timeline=[(0.0, 1500.0), (1.0, 2350.0), (2.0, 2750.0)],
+        )
+        sid = repo.save_session(_sample_events(), snap)
+        timeline = repo.get_session_timeline(sid)
+        assert len(timeline) == 3
+
+    def test_timeline_values(self, repo: SessionRepository) -> None:
+        snap = DpsSnapshot(
+            dps=1000.0,
+            total_damage=2000,
+            elapsed_seconds=2.0,
+            peak_dps=1200.0,
+            combat_active=False,
+            event_count=2,
+            dps_timeline=[(0.0, 1200.0), (2.0, 1000.0)],
+        )
+        sid = repo.save_session(_sample_events(), snap)
+        timeline = repo.get_session_timeline(sid)
+        assert timeline[0]["elapsed"] == pytest.approx(0.0)
+        assert timeline[0]["dps"] == pytest.approx(1200.0)
+        assert timeline[1]["elapsed"] == pytest.approx(2.0)
+
+    def test_timeline_empty_when_no_data(self, repo: SessionRepository) -> None:
+        sid = repo.save_session(_sample_events(), _sample_snapshot())
+        timeline = repo.get_session_timeline(sid)
+        assert timeline == []
+
+    def test_timeline_deleted_on_cascade(self, repo: SessionRepository) -> None:
+        snap = DpsSnapshot(
+            dps=1000.0,
+            total_damage=1000,
+            elapsed_seconds=1.0,
+            peak_dps=1000.0,
+            combat_active=False,
+            event_count=1,
+            dps_timeline=[(0.0, 1000.0)],
+        )
+        sid = repo.save_session(_sample_events(), snap)
+        repo.delete_session(sid)
+        timeline = repo.get_session_timeline(sid)
+        assert timeline == []

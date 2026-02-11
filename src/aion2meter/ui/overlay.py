@@ -7,6 +7,7 @@ from PyQt6.QtGui import QColor, QFont, QPainter
 from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 from aion2meter.models import DpsSnapshot
+from aion2meter.ui.sparkline import SparklineWidget
 
 _GREEN = QColor(0, 255, 100)
 _GRAY = QColor(150, 150, 150)
@@ -15,7 +16,7 @@ _SKILL_YELLOW = QColor(255, 220, 100)
 
 _BASE_WIDTH = 220
 _BASE_HEIGHT = 120
-_BREAKDOWN_HEIGHT = 100  # 스킬 breakdown 추가 높이
+_BREAKDOWN_HEIGHT = 140  # 스파크라인(40) + 스킬(100)
 _MAX_SKILLS = 5
 
 
@@ -66,6 +67,11 @@ class DpsOverlay(QWidget):
         layout.addWidget(self._time_label)
         layout.addWidget(self._peak_label)
 
+        # 스파크라인
+        self._sparkline = SparklineWidget(self)
+        self._sparkline.setVisible(False)
+        layout.addWidget(self._sparkline)
+
         # 스킬 breakdown 라벨들 (상위 5개)
         self._skill_labels: list[QLabel] = []
         for _ in range(_MAX_SKILLS):
@@ -98,6 +104,13 @@ class DpsOverlay(QWidget):
         self._time_label.setText(f"Time: {snapshot.elapsed_seconds:.1f}s")
         self._peak_label.setText(f"Peak: {snapshot.peak_dps:,.0f}")
 
+        # 스파크라인 갱신
+        if self._breakdown_visible and snapshot.dps_timeline:
+            self._sparkline.update_data(snapshot.dps_timeline)
+            self._sparkline.setVisible(True)
+        elif not self._breakdown_visible:
+            self._sparkline.setVisible(False)
+
         # 스킬 breakdown 갱신
         if self._breakdown_visible and snapshot.skill_breakdown:
             sorted_skills = sorted(
@@ -118,13 +131,15 @@ class DpsOverlay(QWidget):
                 lbl.setVisible(False)
 
     def toggle_breakdown(self) -> None:
-        """스킬 breakdown 표시/숨기기 토글."""
+        """스킬 breakdown + 스파크라인 표시/숨기기 토글."""
         self._breakdown_visible = not self._breakdown_visible
         if self._breakdown_visible:
             self.setFixedSize(_BASE_WIDTH, _BASE_HEIGHT + _BREAKDOWN_HEIGHT)
+            self._sparkline.setVisible(True)
         else:
             for lbl in self._skill_labels:
                 lbl.setVisible(False)
+            self._sparkline.setVisible(False)
             self.setFixedSize(_BASE_WIDTH, _BASE_HEIGHT)
 
     @property

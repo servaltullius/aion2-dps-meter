@@ -5,11 +5,13 @@ from __future__ import annotations
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
+    QCheckBox,
     QColorDialog,
     QDialog,
     QFormLayout,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QPushButton,
     QSlider,
     QSpinBox,
@@ -66,6 +68,21 @@ class SettingsDialog(QDialog):
         self._color_btn.clicked.connect(self._pick_color)
         form.addRow("배경색:", self._color_btn)
 
+        # 단축키 설정
+        self._hotkey_overlay_edit = QLineEdit(config.hotkey_overlay)
+        form.addRow("오버레이 단축키:", self._hotkey_overlay_edit)
+
+        self._hotkey_reset_edit = QLineEdit(config.hotkey_reset)
+        form.addRow("전투 초기화 단축키:", self._hotkey_reset_edit)
+
+        self._hotkey_breakdown_edit = QLineEdit(config.hotkey_breakdown)
+        form.addRow("스킬 상세 단축키:", self._hotkey_breakdown_edit)
+
+        # 자동 업데이트
+        self._auto_update_check = QCheckBox("자동 업데이트 확인")
+        self._auto_update_check.setChecked(config.auto_update_check)
+        form.addRow("", self._auto_update_check)
+
         layout.addLayout(form)
 
         # 확인/취소 버튼
@@ -99,5 +116,9 @@ class SettingsDialog(QDialog):
             self._bg_color.green(),
             self._bg_color.blue(),
         )
+        self._config.hotkey_overlay = self._hotkey_overlay_edit.text()
+        self._config.hotkey_reset = self._hotkey_reset_edit.text()
+        self._config.hotkey_breakdown = self._hotkey_breakdown_edit.text()
+        self._config.auto_update_check = self._auto_update_check.isChecked()
         self.settings_changed.emit(self._config)
         self.accept()

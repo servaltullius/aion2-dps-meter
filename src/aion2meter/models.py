@@ -87,6 +87,7 @@ class DpsSnapshot:
     combat_active: bool
     skill_breakdown: dict[str, int] = field(default_factory=dict)
     event_count: int = 0
+    dps_timeline: list[tuple[float, float]] = field(default_factory=list)
 
 
 @dataclass
@@ -103,6 +104,10 @@ class AppConfig:
     overlay_x: int | None = None
     overlay_y: int | None = None
     overlay_bg_color: tuple[int, int, int] = (0, 0, 0)
+    hotkey_overlay: str = "<ctrl>+<shift>+o"
+    hotkey_reset: str = "<ctrl>+<shift>+r"
+    hotkey_breakdown: str = "<ctrl>+<shift>+b"
+    auto_update_check: bool = True
     color_ranges: list[ColorRange] = field(default_factory=list)
 
     @classmethod

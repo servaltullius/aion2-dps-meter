@@ -35,6 +35,7 @@ class TrayIcon(QSystemTrayIcon):
     open_settings = pyqtSignal()
     quit_app = pyqtSignal()
     open_sessions = pyqtSignal()
+    check_update = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(_create_default_icon(), parent)
@@ -65,6 +66,10 @@ class TrayIcon(QSystemTrayIcon):
         sessions_action = QAction("세션 기록", menu)
         sessions_action.triggered.connect(self.open_sessions.emit)
         menu.addAction(sessions_action)
+
+        update_action = QAction("업데이트 확인", menu)
+        update_action.triggered.connect(self.check_update.emit)
+        menu.addAction(update_action)
 
         menu.addSeparator()
 

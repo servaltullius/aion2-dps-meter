@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-
 import cv2
 import numpy as np
 
@@ -18,7 +16,7 @@ class CombatLogPreprocessor:
 
     def __init__(self, color_ranges: list[ColorRange] | None = None) -> None:
         self._color_ranges = color_ranges or AppConfig.default_color_ranges()
-        self._prev_hash: str | None = None
+        self._prev_hash: tuple | None = None
 
     def process(self, frame: CapturedFrame) -> np.ndarray:
         """프레임을 전처리하여 이진화된 numpy 배열을 반환한다.
@@ -47,10 +45,23 @@ class CombatLogPreprocessor:
         return binary
 
     def is_duplicate(self, frame: CapturedFrame) -> bool:
-        """이전 프레임과 동일한지 MD5 해시로 비교한다."""
+        """이전 프레임과 동일한지 5지점 픽셀 샘플링으로 비교한다."""
         image: np.ndarray = frame.image  # type: ignore[assignment]
-        current_hash = hashlib.md5(image.tobytes()).hexdigest()
-        if self._prev_hash is not None and current_hash == self._prev_hash:
+        h, w = image.shape[:2]
+        if h == 0 or w == 0:
+            return False
+
+        # 5지점 샘플: 4모서리 + 중앙
+        points = [
+            (0, 0),
+            (0, w - 1),
+            (h - 1, 0),
+            (h - 1, w - 1),
+            (h // 2, w // 2),
+        ]
+        sample = tuple(image[y, x].tobytes() for y, x in points)
+
+        if self._prev_hash is not None and sample == self._prev_hash:
             return True
-        self._prev_hash = current_hash
+        self._prev_hash = sample
         return False

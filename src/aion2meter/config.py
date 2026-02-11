@@ -68,6 +68,10 @@ class ConfigManager:
             overlay_x=int(overlay_x) if overlay_x is not None else None,
             overlay_y=int(overlay_y) if overlay_y is not None else None,
             overlay_bg_color=overlay_bg_color,
+            hotkey_overlay=str(data.get("hotkey_overlay", "<ctrl>+<shift>+o")),
+            hotkey_reset=str(data.get("hotkey_reset", "<ctrl>+<shift>+r")),
+            hotkey_breakdown=str(data.get("hotkey_breakdown", "<ctrl>+<shift>+b")),
+            auto_update_check=bool(data.get("auto_update_check", True)),
             color_ranges=color_ranges,
         )
 
@@ -98,6 +102,10 @@ class ConfigManager:
             lines.append(f"overlay_y = {config.overlay_y}")
         bg = config.overlay_bg_color
         lines.append(f"overlay_bg_color = [{bg[0]}, {bg[1]}, {bg[2]}]")
+        lines.append(f'hotkey_overlay = "{config.hotkey_overlay}"')
+        lines.append(f'hotkey_reset = "{config.hotkey_reset}"')
+        lines.append(f'hotkey_breakdown = "{config.hotkey_breakdown}"')
+        lines.append(f"auto_update_check = {'true' if config.auto_update_check else 'false'}")
 
         if config.roi is not None:
             lines.append("")

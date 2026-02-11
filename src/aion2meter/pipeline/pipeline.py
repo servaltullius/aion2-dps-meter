@@ -95,6 +95,13 @@ class OcrWorker(QThread):
             except queue.Empty:
                 continue
 
+            # 큐에 더 있으면 최신만 처리 (stale 프레임 스킵)
+            while not self._queue.empty():
+                try:
+                    frame = self._queue.get_nowait()
+                except queue.Empty:
+                    break
+
             if self._preprocessor.is_duplicate(frame):
                 continue
 

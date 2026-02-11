@@ -19,6 +19,8 @@ from aion2meter.ui.settings_dialog import SettingsDialog
 from aion2meter.ui.tray_icon import TrayIcon
 from aion2meter.io.session_repository import SessionRepository
 from aion2meter.ui.session_report import SessionListDialog
+from aion2meter.hotkey_manager import HotkeyManager
+from aion2meter.updater import check_for_update
 
 _LOG_DIR = Path.home() / "Documents" / "aion2meter" / "logs"
 
@@ -62,6 +64,18 @@ class App:
         self._tray.open_sessions.connect(self._open_sessions)
         self._tray.show()
 
+        # 글로벌 단축키
+        self._hotkey_mgr = HotkeyManager()
+        self._hotkey_mgr.register(self._config.hotkey_overlay, self._toggle_overlay)
+        self._hotkey_mgr.register(self._config.hotkey_reset, self._reset_combat)
+        self._hotkey_mgr.register(self._config.hotkey_breakdown, self._toggle_breakdown)
+        self._hotkey_mgr.start()
+
+        # 자동 업데이트 확인
+        self._tray.check_update.connect(self._check_update)
+        if self._config.auto_update_check:
+            self._check_update()
+
         self._roi_selector: RoiSelector | None = None
         self._settings_dialog: SettingsDialog | None = None
 
@@ -100,6 +114,29 @@ class App:
         self._overlay.set_bg_color(*config.overlay_bg_color)
         self._config_manager.save(self._config)
 
+        # 핫키 재등록
+        self._hotkey_mgr.stop()
+        self._hotkey_mgr.unregister_all()
+        self._hotkey_mgr.register(config.hotkey_overlay, self._toggle_overlay)
+        self._hotkey_mgr.register(config.hotkey_reset, self._reset_combat)
+        self._hotkey_mgr.register(config.hotkey_breakdown, self._toggle_breakdown)
+        self._hotkey_mgr.start()
+
+    def _check_update(self) -> None:
+        """GitHub에서 최신 버전을 확인한다."""
+        import threading
+
+        def _check():
+            result = check_for_update("0.1.0")
+            if result:
+                version, url = result
+                self._tray.showMessage(
+                    "업데이트 알림",
+                    f"새 버전 {version}이 있습니다.\n{url}",
+                )
+
+        threading.Thread(target=_check, daemon=True).start()
+
     def _open_roi_selector(self) -> None:
         self._pipeline.stop()
         self._roi_selector = RoiSelector()
@@ -136,6 +173,7 @@ class App:
             snapshot = self._pipeline._calculator.add_events([])
             self._session_repo.save_session(events, snapshot)
 
+        self._hotkey_mgr.stop()
         self._pipeline.stop()
         self._app.quit()
 

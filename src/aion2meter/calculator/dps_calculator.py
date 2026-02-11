@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections import deque
+
 from aion2meter.models import DamageEvent, DpsSnapshot
 
 import logging
@@ -24,7 +26,8 @@ class RealtimeDpsCalculator:
         self._skill_breakdown: dict[str, int] = {}
         self._first_timestamp: float | None = None
         self._last_timestamp: float | None = None
-        self._event_history: list[DamageEvent] = []
+        self._event_history: deque[DamageEvent] = deque(maxlen=10000)
+        self._dps_timeline: list[tuple[float, float]] = []
         self._on_reset_callback: object | None = None
 
     def add_events(self, events: list[DamageEvent]) -> DpsSnapshot:
@@ -52,6 +55,11 @@ class RealtimeDpsCalculator:
                 self._skill_breakdown.get(event.skill, 0) + event.damage
             )
 
+            # 타임라인 기록
+            elapsed = self._calc_elapsed()
+            dps = self._total_damage / max(elapsed, 0.001)
+            self._dps_timeline.append((elapsed, dps))
+
         # 스냅샷 계산
         elapsed = self._calc_elapsed()
         dps = self._total_damage / max(elapsed, 0.001) if self._total_damage > 0 else 0.0
@@ -69,7 +77,12 @@ class RealtimeDpsCalculator:
             combat_active=combat_active,
             skill_breakdown=dict(self._skill_breakdown),
             event_count=self._event_count,
+            dps_timeline=list(self._dps_timeline[-120:]),
         )
+
+    def get_dps_timeline(self) -> list[tuple[float, float]]:
+        """현재 전투의 DPS 타임라인을 반환한다."""
+        return list(self._dps_timeline)
 
     def get_event_history(self) -> list[DamageEvent]:
         """현재 전투의 이벤트 히스토리를 반환한다."""
@@ -94,6 +107,7 @@ class RealtimeDpsCalculator:
                 combat_active=False,
                 skill_breakdown=dict(self._skill_breakdown),
                 event_count=self._event_count,
+                dps_timeline=list(self._dps_timeline),
             )
             self._on_reset_callback(list(self._event_history), snapshot)
         logger.info("전투 리셋")
@@ -103,7 +117,8 @@ class RealtimeDpsCalculator:
         self._skill_breakdown = {}
         self._first_timestamp = None
         self._last_timestamp = None
-        self._event_history = []
+        self._event_history = deque(maxlen=10000)
+        self._dps_timeline = []
 
     def _calc_elapsed(self) -> float:
         """경과 시간(초)을 계산한다."""

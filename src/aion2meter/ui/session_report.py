@@ -74,6 +74,38 @@ class SkillPieChart(FigureCanvasQTAgg):
         )
 
 
+class DpsTimelineChart(FigureCanvasQTAgg):
+    """DPS 타임라인 라인 차트."""
+
+    def __init__(
+        self,
+        times: list[float],
+        dps_values: list[float],
+        avg_dps: float = 0.0,
+        peak_dps: float = 0.0,
+    ) -> None:
+        fig = Figure(figsize=(9, 2.5), tight_layout=True)
+        fig.set_facecolor("#1a1a1a")
+        super().__init__(fig)
+
+        ax = fig.add_subplot(111)
+        ax.set_facecolor("#1a1a1a")
+        ax.plot(times, dps_values, color="#00FF64", linewidth=1.2)
+
+        if peak_dps > 0:
+            ax.axhline(y=peak_dps, color="#FF6B6B", linestyle="--", linewidth=0.8, label=f"Peak: {peak_dps:,.0f}")
+        if avg_dps > 0:
+            ax.axhline(y=avg_dps, color="#FFD700", linestyle="--", linewidth=0.8, label=f"Avg: {avg_dps:,.0f}")
+
+        ax.set_xlabel("시간 (초)", color="white")
+        ax.set_ylabel("DPS", color="white")
+        ax.tick_params(colors="white")
+        for spine in ax.spines.values():
+            spine.set_color("#333333")
+        if peak_dps > 0 or avg_dps > 0:
+            ax.legend(loc="upper right", facecolor="#2a2a2a", edgecolor="#555555", labelcolor="white")
+
+
 class SessionDetailDialog(QDialog):
     """세션 상세 정보 다이얼로그."""
 
@@ -111,6 +143,16 @@ class SessionDetailDialog(QDialog):
             f"Peak: {peak_dps:,.1f}"
         )
         layout.addWidget(summary)
+
+        # DPS 타임라인
+        timeline_rows = repo.get_session_timeline(session_id)
+        if timeline_rows:
+            times = [r["elapsed"] for r in timeline_rows]
+            dps_values = [r["dps"] for r in timeline_rows]
+            timeline_chart = DpsTimelineChart(
+                times, dps_values, avg_dps=avg_dps, peak_dps=peak_dps,
+            )
+            layout.addWidget(timeline_chart)
 
         # 스킬 요약 데이터
         skill_rows = repo.get_skill_summary(session_id)
