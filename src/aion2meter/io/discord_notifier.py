@@ -62,7 +62,7 @@ class DiscordNotifier:
     ) -> bool:
         """세션 요약을 Discord로 전송한다."""
         if not DiscordNotifier.is_valid_webhook_url(webhook_url):
-            logger.warning("잘못된 Discord Webhook URL: %s", webhook_url)
+            logger.warning("잘못된 Discord Webhook URL 형식")
             return False
 
         embed = DiscordNotifier.build_embed(snapshot, tag)

@@ -124,6 +124,7 @@ class DpsPipeline(QObject):
     """DPS 파이프라인 조립 및 제어."""
 
     dps_updated = pyqtSignal(object)  # DpsSnapshot
+    combat_ended = pyqtSignal(object, object)  # (list[DamageEvent], DpsSnapshot)
 
     def __init__(
         self,
@@ -141,9 +142,14 @@ class DpsPipeline(QObject):
         self._ocr_engine = ocr_engine or OcrEngineManager(primary=self._build_default_ocr())
         self._parser = KoreanCombatParser()
         self._calculator = RealtimeDpsCalculator(idle_timeout=config.idle_timeout)
+        self._calculator.set_on_reset(self._on_calculator_reset)
 
         self._capture_worker: CaptureWorker | None = None
         self._ocr_worker: OcrWorker | None = None
+
+    def _on_calculator_reset(self, events: list, snapshot: object) -> None:
+        """계산기 리셋 콜백 → 시그널로 메인 스레드에 전달."""
+        self.combat_ended.emit(events, snapshot)
 
     def _build_default_ocr(self) -> object:
         """기본 OCR 엔진 생성. winocr 우선, 없으면 tesseract."""
@@ -206,6 +212,10 @@ class DpsPipeline(QObject):
     def get_event_history(self) -> list:
         """현재 전투의 이벤트 히스토리를 반환한다."""
         return self._calculator.get_event_history()
+
+    def get_current_snapshot(self) -> DpsSnapshot:
+        """현재 전투의 DPS 스냅샷을 반환한다 (상태 변경 없음)."""
+        return self._calculator.add_events([])
 
     @property
     def is_running(self) -> bool:

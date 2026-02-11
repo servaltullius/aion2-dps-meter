@@ -64,7 +64,7 @@ class SessionRepository:
     def _migrate(self) -> None:
         """기존 DB에 누락된 컬럼을 추가한다."""
         cur = self._conn.execute("PRAGMA table_info(sessions)")
-        columns = {row[1] for row in cur.fetchall()}
+        columns = {row["name"] for row in cur.fetchall()}
         if "tag" not in columns:
             self._conn.execute("ALTER TABLE sessions ADD COLUMN tag TEXT DEFAULT ''")
             self._conn.commit()

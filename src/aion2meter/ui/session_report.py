@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QLineEdit,
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
@@ -194,11 +195,20 @@ class SessionListDialog(QDialog):
 
         layout = QVBoxLayout(self)
 
+        # 태그 필터
+        filter_layout = QHBoxLayout()
+        filter_layout.addWidget(QLabel("태그 필터:"))
+        self._tag_filter = QLineEdit()
+        self._tag_filter.setPlaceholderText("태그로 필터링 (Enter)")
+        self._tag_filter.returnPressed.connect(self._refresh)
+        filter_layout.addWidget(self._tag_filter)
+        layout.addLayout(filter_layout)
+
         # 테이블
         self._table = QTableWidget()
-        self._table.setColumnCount(5)
+        self._table.setColumnCount(6)
         self._table.setHorizontalHeaderLabels(
-            ["날짜/시간", "지속시간", "총 대미지", "평균 DPS", "Peak DPS"]
+            ["날짜/시간", "태그", "지속시간", "총 대미지", "평균 DPS", "Peak DPS"]
         )
         header = self._table.horizontalHeader()
         if header is not None:
@@ -227,7 +237,8 @@ class SessionListDialog(QDialog):
 
     def _refresh(self) -> None:
         """세션 목록을 DB에서 다시 불러온다."""
-        sessions = self._repo.list_sessions()
+        tag_filter = self._tag_filter.text().strip()
+        sessions = self._repo.list_sessions(tag_filter=tag_filter)
         self._session_ids = [s["id"] for s in sessions]
         self._table.setRowCount(len(sessions))
 
@@ -237,16 +248,19 @@ class SessionListDialog(QDialog):
             )
             self._table.setItem(row, 0, QTableWidgetItem(start_str))
             self._table.setItem(
-                row, 1, QTableWidgetItem(f"{s['duration']:.1f}초")
+                row, 1, QTableWidgetItem(s.get("tag", ""))
             )
             self._table.setItem(
-                row, 2, QTableWidgetItem(f"{s['total_damage']:,}")
+                row, 2, QTableWidgetItem(f"{s['duration']:.1f}초")
             )
             self._table.setItem(
-                row, 3, QTableWidgetItem(f"{s['avg_dps']:,.1f}")
+                row, 3, QTableWidgetItem(f"{s['total_damage']:,}")
             )
             self._table.setItem(
-                row, 4, QTableWidgetItem(f"{s['peak_dps']:,.1f}")
+                row, 4, QTableWidgetItem(f"{s['avg_dps']:,.1f}")
+            )
+            self._table.setItem(
+                row, 5, QTableWidgetItem(f"{s['peak_dps']:,.1f}")
             )
 
     def _selected_ids(self) -> list[int]:

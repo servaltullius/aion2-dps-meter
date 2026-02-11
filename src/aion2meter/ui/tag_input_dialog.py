@@ -23,6 +23,7 @@ class TagInputDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("세션 태그")
         self.setMinimumWidth(300)
+        self._tag = ""
 
         layout = QVBoxLayout(self)
         layout.addWidget(QLabel("세션에 태그를 입력하세요 (보스명, 메모 등):"))
@@ -41,10 +42,16 @@ class TagInputDialog(QDialog):
         btn_layout.addWidget(skip_btn)
         layout.addLayout(btn_layout)
 
+    def get_tag(self) -> str:
+        """exec() 완료 후 입력된 태그를 반환한다."""
+        return self._tag
+
     def _submit(self) -> None:
-        self.tag_submitted.emit(self._input.text().strip())
+        self._tag = self._input.text().strip()
+        self.tag_submitted.emit(self._tag)
         self.accept()
 
     def _skip(self) -> None:
+        self._tag = ""
         self.tag_submitted.emit("")
         self.accept()

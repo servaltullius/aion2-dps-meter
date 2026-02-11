@@ -90,12 +90,18 @@ class ConfigManager:
     # ── 직렬화 ────────────────────────────────────────────
 
     @staticmethod
+    def _escape_toml_str(value: str) -> str:
+        """TOML 문자열 값을 이스케이프한다."""
+        return value.replace("\\", "\\\\").replace('"', '\\"')
+
+    @staticmethod
     def _serialize(config: AppConfig) -> str:
         """AppConfig를 TOML 문자열로 변환한다 (외부 의존성 없음)."""
+        _esc = ConfigManager._escape_toml_str
         lines: list[str] = []
 
         lines.append(f"fps = {config.fps}")
-        lines.append(f'ocr_engine = "{config.ocr_engine}"')
+        lines.append(f'ocr_engine = "{_esc(config.ocr_engine)}"')
         lines.append(f"idle_timeout = {config.idle_timeout}")
         lines.append(f"overlay_opacity = {config.overlay_opacity}")
         lines.append(f"overlay_width = {config.overlay_width}")
@@ -106,11 +112,11 @@ class ConfigManager:
             lines.append(f"overlay_y = {config.overlay_y}")
         bg = config.overlay_bg_color
         lines.append(f"overlay_bg_color = [{bg[0]}, {bg[1]}, {bg[2]}]")
-        lines.append(f'hotkey_overlay = "{config.hotkey_overlay}"')
-        lines.append(f'hotkey_reset = "{config.hotkey_reset}"')
-        lines.append(f'hotkey_breakdown = "{config.hotkey_breakdown}"')
+        lines.append(f'hotkey_overlay = "{_esc(config.hotkey_overlay)}"')
+        lines.append(f'hotkey_reset = "{_esc(config.hotkey_reset)}"')
+        lines.append(f'hotkey_breakdown = "{_esc(config.hotkey_breakdown)}"')
         lines.append(f"auto_update_check = {'true' if config.auto_update_check else 'false'}")
-        lines.append(f'discord_webhook_url = "{config.discord_webhook_url}"')
+        lines.append(f'discord_webhook_url = "{_esc(config.discord_webhook_url)}"')
         lines.append(f"discord_auto_send = {'true' if config.discord_auto_send else 'false'}")
         lines.append(f"dps_alert_threshold = {config.dps_alert_threshold}")
         lines.append(f"dps_alert_cooldown = {config.dps_alert_cooldown}")
@@ -127,7 +133,7 @@ class ConfigManager:
             for cr in config.color_ranges:
                 lines.append("")
                 lines.append("[[color_ranges]]")
-                lines.append(f'name = "{cr.name}"')
+                lines.append(f'name = "{_esc(cr.name)}"')
                 lines.append(f"lower = [{cr.lower[0]}, {cr.lower[1]}, {cr.lower[2]}]")
                 lines.append(f"upper = [{cr.upper[0]}, {cr.upper[1]}, {cr.upper[2]}]")
 

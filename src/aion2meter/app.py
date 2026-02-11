@@ -46,7 +46,7 @@ class App:
         # 파이프라인
         self._pipeline = DpsPipeline(config=self._config)
         self._pipeline.dps_updated.connect(self._on_dps_updated)
-        self._pipeline._calculator.set_on_reset(self._on_combat_ended)
+        self._pipeline.combat_ended.connect(self._on_combat_ended)
 
         # UI
         self._overlay = DpsOverlay(
@@ -94,9 +94,6 @@ class App:
 
         self._roi_selector: RoiSelector | None = None
         self._settings_dialog: SettingsDialog | None = None
-        self._tag_dialog: TagInputDialog | None = None
-        self._pending_events: list = []
-        self._pending_snapshot: object = None
 
         # 저장된 ROI가 있으면 바로 시작
         if self._config.roi is not None:
@@ -184,20 +181,14 @@ class App:
     def _reset_combat(self) -> None:
         self._pipeline.reset_combat()
 
-    def _on_combat_ended(self, events: list, snapshot: object) -> None:
+    def _on_combat_ended(self, events: object, snapshot: object) -> None:
         """전투 종료(자동/수동 리셋) 시 태그 입력 후 세션을 저장한다."""
         if not events:
             return
-        self._pending_events = events
-        self._pending_snapshot = snapshot
-        self._tag_dialog = TagInputDialog()
-        self._tag_dialog.tag_submitted.connect(self._finish_combat_save)
-        self._tag_dialog.show()
+        dlg = TagInputDialog()
+        dlg.exec()  # 모달 — 입력 완료까지 블로킹하여 경합 방지
+        tag = dlg.get_tag()
 
-    def _finish_combat_save(self, tag: str) -> None:
-        """태그 입력 완료 후 세션 저장 + Discord 전송."""
-        events = self._pending_events
-        snapshot = self._pending_snapshot
         self._session_repo.save_session(events, snapshot, tag=tag)
 
         # Discord 자동 전송
@@ -221,7 +212,7 @@ class App:
         self._pipeline.stop()
         self._pipeline = DpsPipeline(config=self._config)
         self._pipeline.dps_updated.connect(self._on_dps_updated)
-        self._pipeline._calculator.set_on_reset(self._on_combat_ended)
+        self._pipeline.combat_ended.connect(self._on_combat_ended)
         if self._config.roi is not None:
             self._pipeline.start(self._config.roi)
         self._update_profile_menu()
@@ -255,7 +246,7 @@ class App:
         # 활성 세션 저장 (태그 없이)
         events = self._pipeline.get_event_history()
         if events:
-            snapshot = self._pipeline._calculator.add_events([])
+            snapshot = self._pipeline.get_current_snapshot()
             self._session_repo.save_session(events, snapshot, tag="")
 
         self._hotkey_mgr.stop()
