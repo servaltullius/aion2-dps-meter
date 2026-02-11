@@ -19,6 +19,7 @@ dependencies = [
 [project.optional-dependencies]
 winocr = ["winocr>=0.2"]
 tesseract = ["pytesseract>=0.3"]
+easyocr = ["easyocr>=1.7"]
 dev = [
     "pytest>=8.0",
     "pytest-qt>=4.3",

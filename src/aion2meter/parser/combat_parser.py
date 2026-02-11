@@ -22,6 +22,13 @@ _OCR_TEXT_CORRECTIONS: dict[str, str] = {
     "대머지": "대미지",
     "대미저": "대미지",
     "대머저": "대미지",
+    "사용혜": "사용해",
+    "사웅해": "사용해",
+    "줬숨니다": "줬습니다",
+    "줬습나다": "줬습니다",
+    "줬숩니다": "줬습니다",
+    "빗나갔숨니다": "빗나갔습니다",
+    "저항했숨니다": "저항했습니다",
 }
 
 # OCR 숫자 보정 (숫자 컨텍스트에서 적용)
@@ -34,12 +41,15 @@ _OCR_DIGIT_MAP: dict[str, str] = {
     "S": "5",
     "Z": "2",
     "G": "6",
+    "D": "0",
+    "Q": "0",
+    "U": "0",
 }
 
 # OCR로 인해 숫자 위치에 나올 수 있는 문자 패턴
 # \d 외에도 O, o, l, I, B, S, Z, G 등이 OCR 오류로 나올 수 있음
-_NUM = r"[\d,.\-OolIBSZG]"
-_NUM_START = r"[\dOolIBSZG]"
+_NUM = r"[\d,.\-OolIBSZGDQU]"
+_NUM_START = r"[\dOolIBSZGDQU]"
 
 # 정규식: 배율(치명타/완벽/강타 등) 포함 대미지
 # 긴 패턴(강타 치명타, 완벽 치명타)을 먼저 시도하도록 순서 지정
@@ -55,6 +65,21 @@ _RE_NORMAL = re.compile(
 # 정규식: 추가 대미지
 _RE_ADDITIONAL = re.compile(
     rf"(.*?)에게\s*추가로\s*({_NUM_START}{_NUM}*)\s*의\s*대미지를\s*줬습니다"
+)
+
+# 정규식: 빗나감
+_RE_MISS = re.compile(
+    r"(.*?)에게\s+(.*?)[을를]\s*사용했지만\s*빗나갔습니다"
+)
+
+# 정규식: 저항
+_RE_RESIST = re.compile(
+    r"(.*?)에게\s+(.*?)[을를]\s*사용했지만\s*저항했습니다"
+)
+
+# Fuzzy fallback: "에게" + 숫자 + "대미지"
+_RE_FUZZY_DAMAGE = re.compile(
+    rf"(.*?)에게\s+.*?({_NUM_START}{_NUM}*)\s*의\s*대미지"
 )
 
 
@@ -126,12 +151,34 @@ class KoreanCombatParser:
                 is_additional=True,
             )
 
+        # 1.5) 빗나감/저항 (대미지 0)
+        m = _RE_MISS.search(line)
+        if m:
+            return DamageEvent(
+                timestamp=timestamp,
+                source="",
+                target=m.group(1).strip(),
+                skill=m.group(2).strip(),
+                damage=0,
+                hit_type=HitType.MISS,
+            )
+
+        m = _RE_RESIST.search(line)
+        if m:
+            return DamageEvent(
+                timestamp=timestamp,
+                source="",
+                target=m.group(1).strip(),
+                skill=m.group(2).strip(),
+                damage=0,
+                hit_type=HitType.RESIST,
+            )
+
         # 2) 배율 포함 대미지 (치명타, 완벽, 강타 등)
         m = _RE_MODIFIER.search(line)
         if m:
             target = m.group(1).strip()
             modifier_raw = m.group(2).strip()
-            # 공백 정규화: "강타 치명타" vs "강타  치명타"
             modifier_key = re.sub(r"\s+", " ", modifier_raw)
             skill = m.group(3).strip()
             damage = _parse_number(m.group(4))
@@ -157,6 +204,26 @@ class KoreanCombatParser:
                 source="",
                 target=target,
                 skill=skill,
+                damage=damage,
+                hit_type=HitType.NORMAL,
+                is_additional=False,
+            )
+
+        # 4) Fuzzy fallback: "에게" + 숫자 + "대미지" 키워드만으로 추출
+        m = _RE_FUZZY_DAMAGE.search(line)
+        if m:
+            target = m.group(1).strip()
+            try:
+                damage = _parse_number(m.group(2))
+            except (ValueError, IndexError):
+                return None
+            if damage <= 0:
+                return None
+            return DamageEvent(
+                timestamp=timestamp,
+                source="",
+                target=target,
+                skill="",
                 damage=damage,
                 hit_type=HitType.NORMAL,
                 is_additional=False,

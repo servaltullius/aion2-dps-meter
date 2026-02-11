@@ -241,3 +241,66 @@ class TestVariousTargets:
         assert len(events) == 1
         assert events[0].target == "드래곤"
         assert events[0].skill == "화염구"
+
+
+class TestMissResist:
+    """빗나감/저항 파싱."""
+
+    def test_miss_pattern(self, parser: KoreanCombatParser):
+        text = "몬스터에게 검격을 사용했지만 빗나갔습니다."
+        events = parser.parse(text, 1.0)
+        assert len(events) == 1
+        evt = events[0]
+        assert evt.target == "몬스터"
+        assert evt.skill == "검격"
+        assert evt.damage == 0
+        assert evt.hit_type == HitType.MISS
+
+    def test_resist_pattern(self, parser: KoreanCombatParser):
+        text = "몬스터에게 화염구를 사용했지만 저항했습니다."
+        events = parser.parse(text, 1.0)
+        assert len(events) == 1
+        evt = events[0]
+        assert evt.target == "몬스터"
+        assert evt.skill == "화염구"
+        assert evt.damage == 0
+        assert evt.hit_type == HitType.RESIST
+
+
+class TestExtendedOcrCorrection:
+    """확장된 OCR 보정 테스트."""
+
+    def test_사용혜_correction(self, parser: KoreanCombatParser):
+        text = "몬스터에게 검격을 사용혜 1,234의 대미지를 줬습니다."
+        events = parser.parse(text, 1.0)
+        assert len(events) == 1
+        assert events[0].damage == 1234
+
+    def test_줬숨니다_correction(self, parser: KoreanCombatParser):
+        text = "몬스터에게 검격을 사용해 1,234의 대미지를 줬숨니다."
+        events = parser.parse(text, 1.0)
+        assert len(events) == 1
+        assert events[0].damage == 1234
+
+    def test_digit_D_to_0(self, parser: KoreanCombatParser):
+        text = "몬스터에게 검격을 사용해 1,D34의 대미지를 줬습니다."
+        events = parser.parse(text, 1.0)
+        assert len(events) == 1
+        assert events[0].damage == 1034
+
+
+class TestFuzzyFallback:
+    """Fuzzy fallback 파싱 테스트."""
+
+    def test_fuzzy_extracts_damage_from_garbled_text(self, parser: KoreanCombatParser):
+        """정규식 매칭 실패해도 핵심 키워드가 있으면 대미지를 추출한다."""
+        text = "몬스터에게 검격 사용하여 5,678의 대미지를 줬습니다"
+        events = parser.parse(text, 1.0)
+        assert len(events) == 1
+        assert events[0].damage == 5678
+
+    def test_fuzzy_no_damage_number_returns_empty(self, parser: KoreanCombatParser):
+        """대미지 숫자가 없으면 fuzzy도 이벤트를 생성하지 않는다."""
+        text = "몬스터에게 대미지를 줬습니다"
+        events = parser.parse(text, 1.0)
+        assert events == []

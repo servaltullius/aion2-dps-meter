@@ -12,6 +12,7 @@ from PyQt6.QtCore import QObject, QThread, pyqtSignal
 
 from aion2meter.calculator.dps_calculator import RealtimeDpsCalculator
 from aion2meter.capture.mss_capture import MssCapture
+from aion2meter.io.ocr_debugger import OcrDebugger
 from aion2meter.models import AppConfig, CapturedFrame, DpsSnapshot, ROI
 from aion2meter.ocr.engine_manager import OcrEngineManager
 from aion2meter.parser.combat_parser import KoreanCombatParser
@@ -72,6 +73,11 @@ class OcrWorker(QThread):
         self._calculator = calculator
         self._queue: queue.Queue[CapturedFrame] = queue.Queue(maxsize=max_queue_size)
         self._running = False
+        self._debugger: OcrDebugger | None = None
+
+    def set_debugger(self, debugger: OcrDebugger) -> None:
+        """OCR 디버거를 설정한다."""
+        self._debugger = debugger
 
     def enqueue(self, frame: CapturedFrame) -> None:
         """프레임을 큐에 추가. 큐가 꽉 차면 가장 오래된 프레임 버림."""
@@ -109,9 +115,15 @@ class OcrWorker(QThread):
             ocr_result = self._ocr_engine.recognize(processed)
 
             if not ocr_result.text.strip():
+                if self._debugger:
+                    self._debugger.dump(frame.image, processed, "", [])
                 continue
 
             events = self._parser.parse(ocr_result.text, frame.timestamp)
+
+            if self._debugger:
+                self._debugger.dump(frame.image, processed, ocr_result.text, events)
+
             if events:
                 snapshot = self._calculator.add_events(events)
                 self.dps_updated.emit(snapshot)
@@ -137,9 +149,17 @@ class DpsPipeline(QObject):
 
         self._capturer = capturer or MssCapture()
         self._preprocessor = CombatLogPreprocessor(
-            config.color_ranges or AppConfig.default_color_ranges()
+            color_ranges=config.color_ranges or AppConfig.default_color_ranges(),
+            preprocess_config=config.preprocess,
         )
-        self._ocr_engine = ocr_engine or OcrEngineManager(primary=self._build_default_ocr())
+        if ocr_engine is not None:
+            self._ocr_engine = ocr_engine
+        else:
+            primary = self._build_ocr_engine(config.ocr_engine)
+            fallback = self._build_ocr_engine(config.ocr_fallback) if config.ocr_fallback else None
+            self._ocr_engine = OcrEngineManager(
+                primary=primary, fallback=fallback, mode=config.ocr_mode,
+            )
         self._parser = KoreanCombatParser()
         self._calculator = RealtimeDpsCalculator(idle_timeout=config.idle_timeout)
         self._calculator.set_on_reset(self._on_calculator_reset)
@@ -151,19 +171,28 @@ class DpsPipeline(QObject):
         """계산기 리셋 콜백 → 시그널로 메인 스레드에 전달."""
         self.combat_ended.emit(events, snapshot)
 
-    def _build_default_ocr(self) -> object:
-        """기본 OCR 엔진 생성. winocr 우선, 없으면 tesseract."""
-        try:
-            from aion2meter.ocr.winocr_engine import WinOcrEngine
-            return WinOcrEngine()
-        except Exception:
-            pass
-        try:
-            from aion2meter.ocr.tesseract_engine import TesseractEngine
-            return TesseractEngine()
-        except Exception:
-            pass
-        raise RuntimeError("사용 가능한 OCR 엔진이 없습니다. winocr 또는 pytesseract를 설치하세요.")
+    @staticmethod
+    def _build_ocr_engine(name: str) -> object:
+        """이름으로 OCR 엔진을 생성한다. 실패 시 다음 엔진 시도."""
+        if name == "easyocr":
+            try:
+                from aion2meter.ocr.easyocr_engine import EasyOcrEngine
+                return EasyOcrEngine(gpu=True)
+            except Exception:
+                pass
+        if name in ("winocr", "easyocr", ""):
+            try:
+                from aion2meter.ocr.winocr_engine import WinOcrEngine
+                return WinOcrEngine()
+            except Exception:
+                pass
+        if name in ("tesseract", ""):
+            try:
+                from aion2meter.ocr.tesseract_engine import TesseractEngine
+                return TesseractEngine()
+            except Exception:
+                pass
+        raise RuntimeError(f"사용 가능한 OCR 엔진이 없습니다: {name}")
 
     def start(self, roi: ROI) -> None:
         """파이프라인 시작."""
@@ -176,6 +205,11 @@ class DpsPipeline(QObject):
             parser=self._parser,
             calculator=self._calculator,
         )
+        if self._config.ocr_debug:
+            from pathlib import Path
+            debug_dir = Path.home() / ".aion2meter" / "debug"
+            self._ocr_worker.set_debugger(OcrDebugger(output_dir=debug_dir, enabled=True))
+
         self._ocr_worker.dps_updated.connect(self.dps_updated.emit)
 
         self._capture_worker = CaptureWorker(

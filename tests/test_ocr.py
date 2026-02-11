@@ -113,3 +113,54 @@ class TestOcrEngineManager:
         mgr.recognize(image)       # fail (count=2)
         result = mgr.recognize(image)  # ok (count=0)
         assert result.text == "ok again"
+
+
+class TestBestConfidenceMode:
+    """best_confidence 모드 테스트."""
+
+    def test_best_confidence_picks_higher(self) -> None:
+        """두 엔진 중 confidence가 높은 쪽을 선택한다."""
+        primary = MagicMock()
+        primary.recognize.return_value = OcrResult(text="primary", confidence=0.7, timestamp=1.0)
+        fallback = MagicMock()
+        fallback.recognize.return_value = OcrResult(text="fallback", confidence=0.9, timestamp=1.0)
+
+        mgr = OcrEngineManager(primary=primary, fallback=fallback, mode="best_confidence")
+        result = mgr.recognize(_make_image())
+
+        assert result.text == "fallback"
+        assert result.confidence == 0.9
+
+    def test_best_confidence_primary_wins(self) -> None:
+        """primary의 confidence가 높으면 primary를 선택한다."""
+        primary = MagicMock()
+        primary.recognize.return_value = OcrResult(text="primary", confidence=0.95, timestamp=1.0)
+        fallback = MagicMock()
+        fallback.recognize.return_value = OcrResult(text="fallback", confidence=0.8, timestamp=1.0)
+
+        mgr = OcrEngineManager(primary=primary, fallback=fallback, mode="best_confidence")
+        result = mgr.recognize(_make_image())
+
+        assert result.text == "primary"
+
+    def test_best_confidence_fallback_error(self) -> None:
+        """best_confidence 모드에서 fallback이 에러나면 primary 결과를 사용한다."""
+        primary = MagicMock()
+        primary.recognize.return_value = OcrResult(text="primary", confidence=0.7, timestamp=1.0)
+        fallback = MagicMock()
+        fallback.recognize.side_effect = RuntimeError("fail")
+
+        mgr = OcrEngineManager(primary=primary, fallback=fallback, mode="best_confidence")
+        result = mgr.recognize(_make_image())
+
+        assert result.text == "primary"
+
+    def test_best_confidence_no_fallback(self) -> None:
+        """fallback 없이 best_confidence 모드면 primary만 사용한다."""
+        primary = MagicMock()
+        primary.recognize.return_value = OcrResult(text="primary", confidence=0.7, timestamp=1.0)
+
+        mgr = OcrEngineManager(primary=primary, fallback=None, mode="best_confidence")
+        result = mgr.recognize(_make_image())
+
+        assert result.text == "primary"

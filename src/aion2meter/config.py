@@ -5,7 +5,7 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-from aion2meter.models import AppConfig, ColorRange, ROI
+from aion2meter.models import AppConfig, ColorRange, PreprocessConfig, ROI
 
 _DEFAULT_PATH = Path.home() / ".aion2meter" / "config.toml"
 
@@ -57,10 +57,23 @@ class ConfigManager:
         bg_raw = data.get("overlay_bg_color", [0, 0, 0])
         overlay_bg_color = tuple(bg_raw)  # type: ignore[arg-type]
 
+        # preprocess 설정
+        preprocess_data = data.get("preprocess", {})
+        preprocess = PreprocessConfig(
+            upscale_factor=int(preprocess_data.get("upscale_factor", 2)),
+            denoise=bool(preprocess_data.get("denoise", True)),
+            sharpen=bool(preprocess_data.get("sharpen", True)),
+            adaptive_threshold=bool(preprocess_data.get("adaptive_threshold", False)),
+            cleanup_min_area=int(preprocess_data.get("cleanup_min_area", 10)),
+        )
+
         return AppConfig(
             roi=roi,
             fps=int(data.get("fps", 10)),
             ocr_engine=str(data.get("ocr_engine", "winocr")),
+            ocr_fallback=str(data.get("ocr_fallback", "")),
+            ocr_mode=str(data.get("ocr_mode", "failover")),
+            ocr_debug=bool(data.get("ocr_debug", False)),
             idle_timeout=float(data.get("idle_timeout", 5.0)),
             overlay_opacity=float(data.get("overlay_opacity", 0.75)),
             overlay_width=int(data.get("overlay_width", 220)),
@@ -76,6 +89,7 @@ class ConfigManager:
             discord_auto_send=bool(data.get("discord_auto_send", False)),
             dps_alert_threshold=float(data.get("dps_alert_threshold", 0.0)),
             dps_alert_cooldown=float(data.get("dps_alert_cooldown", 10.0)),
+            preprocess=preprocess,
             color_ranges=color_ranges,
         )
 
@@ -102,6 +116,9 @@ class ConfigManager:
 
         lines.append(f"fps = {config.fps}")
         lines.append(f'ocr_engine = "{_esc(config.ocr_engine)}"')
+        lines.append(f'ocr_fallback = "{_esc(config.ocr_fallback)}"')
+        lines.append(f'ocr_mode = "{_esc(config.ocr_mode)}"')
+        lines.append(f"ocr_debug = {'true' if config.ocr_debug else 'false'}")
         lines.append(f"idle_timeout = {config.idle_timeout}")
         lines.append(f"overlay_opacity = {config.overlay_opacity}")
         lines.append(f"overlay_width = {config.overlay_width}")
@@ -120,6 +137,15 @@ class ConfigManager:
         lines.append(f"discord_auto_send = {'true' if config.discord_auto_send else 'false'}")
         lines.append(f"dps_alert_threshold = {config.dps_alert_threshold}")
         lines.append(f"dps_alert_cooldown = {config.dps_alert_cooldown}")
+
+        # preprocess
+        lines.append("")
+        lines.append("[preprocess]")
+        lines.append(f"upscale_factor = {config.preprocess.upscale_factor}")
+        lines.append(f"denoise = {'true' if config.preprocess.denoise else 'false'}")
+        lines.append(f"sharpen = {'true' if config.preprocess.sharpen else 'false'}")
+        lines.append(f"adaptive_threshold = {'true' if config.preprocess.adaptive_threshold else 'false'}")
+        lines.append(f"cleanup_min_area = {config.preprocess.cleanup_min_area}")
 
         if config.roi is not None:
             lines.append("")

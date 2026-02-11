@@ -52,6 +52,8 @@ class HitType(Enum):
     STRONG = "강타"
     STRONG_CRITICAL = "강타 치명타"
     PERFECT_CRITICAL = "완벽 치명타"
+    MISS = "빗나감"
+    RESIST = "저항"
 
 
 @dataclass(frozen=True)
@@ -90,6 +92,17 @@ class DpsSnapshot:
     dps_timeline: list[tuple[float, float]] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class PreprocessConfig:
+    """전처리 파이프라인 설정."""
+
+    upscale_factor: int = 2
+    denoise: bool = True
+    sharpen: bool = True
+    adaptive_threshold: bool = False
+    cleanup_min_area: int = 10
+
+
 @dataclass
 class AppConfig:
     """앱 설정."""
@@ -97,6 +110,9 @@ class AppConfig:
     roi: ROI | None = None
     fps: int = 10
     ocr_engine: str = "winocr"
+    ocr_fallback: str = ""
+    ocr_mode: str = "failover"
+    ocr_debug: bool = False
     idle_timeout: float = 5.0
     overlay_opacity: float = 0.75
     overlay_width: int = 220
@@ -112,6 +128,7 @@ class AppConfig:
     discord_auto_send: bool = False
     dps_alert_threshold: float = 0.0
     dps_alert_cooldown: float = 10.0
+    preprocess: PreprocessConfig = field(default_factory=PreprocessConfig)
     color_ranges: list[ColorRange] = field(default_factory=list)
 
     @classmethod

@@ -234,3 +234,63 @@ class TestAlertConfig:
         loaded = mgr.load()
         assert loaded.dps_alert_threshold == 5000.0
         assert loaded.dps_alert_cooldown == 15.0
+
+
+class TestPreprocessConfig:
+    """전처리 설정 테스트."""
+
+    def test_default_preprocess_config(self):
+        from aion2meter.models import PreprocessConfig
+        config = AppConfig()
+        assert config.preprocess is not None
+        assert config.preprocess.upscale_factor == 2
+        assert config.preprocess.denoise is True
+        assert config.preprocess.sharpen is True
+        assert config.preprocess.adaptive_threshold is False
+        assert config.preprocess.cleanup_min_area == 10
+
+    def test_preprocess_config_roundtrip(self, tmp_path):
+        from aion2meter.models import PreprocessConfig
+        config = AppConfig(
+            preprocess=PreprocessConfig(
+                upscale_factor=3,
+                denoise=False,
+                sharpen=True,
+                adaptive_threshold=True,
+                cleanup_min_area=20,
+            ),
+        )
+        mgr = ConfigManager(default_path=tmp_path / "config.toml")
+        mgr.save(config)
+        loaded = mgr.load()
+        assert loaded.preprocess.upscale_factor == 3
+        assert loaded.preprocess.denoise is False
+        assert loaded.preprocess.sharpen is True
+        assert loaded.preprocess.adaptive_threshold is True
+        assert loaded.preprocess.cleanup_min_area == 20
+
+
+class TestOcrEngineConfig:
+    """OCR 엔진 설정 직렬화/역직렬화."""
+
+    def test_default_ocr_config(self):
+        config = AppConfig()
+        assert config.ocr_engine == "winocr"
+        assert config.ocr_fallback == ""
+        assert config.ocr_mode == "failover"
+        assert config.ocr_debug is False
+
+    def test_ocr_config_roundtrip(self, tmp_path):
+        config = AppConfig(
+            ocr_engine="easyocr",
+            ocr_fallback="tesseract",
+            ocr_mode="best_confidence",
+            ocr_debug=True,
+        )
+        mgr = ConfigManager(default_path=tmp_path / "config.toml")
+        mgr.save(config)
+        loaded = mgr.load()
+        assert loaded.ocr_engine == "easyocr"
+        assert loaded.ocr_fallback == "tesseract"
+        assert loaded.ocr_mode == "best_confidence"
+        assert loaded.ocr_debug is True
