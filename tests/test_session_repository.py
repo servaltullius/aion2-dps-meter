@@ -236,3 +236,72 @@ class TestSessionTimeline:
         repo.delete_session(sid)
         timeline = repo.get_session_timeline(sid)
         assert timeline == []
+
+
+class TestSessionTag:
+    """세션 태그 기능 검증."""
+
+    def test_save_with_tag(self, repo: SessionRepository) -> None:
+        """태그와 함께 세션을 저장하면 tag가 기록된다."""
+        sid = repo.save_session(_sample_events(), _sample_snapshot(), tag="보스1")
+        session = repo.get_session(sid)
+        assert session is not None
+        assert session["tag"] == "보스1"
+
+    def test_save_without_tag_defaults_empty(self, repo: SessionRepository) -> None:
+        """태그 없이 저장하면 빈 문자열이다."""
+        sid = repo.save_session(_sample_events(), _sample_snapshot())
+        session = repo.get_session(sid)
+        assert session is not None
+        assert session["tag"] == ""
+
+    def test_list_sessions_includes_tag(self, repo: SessionRepository) -> None:
+        """목록에 tag 필드가 포함된다."""
+        repo.save_session(_sample_events(), _sample_snapshot(), tag="테스트")
+        sessions = repo.list_sessions()
+        assert sessions[0]["tag"] == "테스트"
+
+    def test_filter_by_tag(self, repo: SessionRepository) -> None:
+        """tag_filter로 필터링한다."""
+        repo.save_session(_sample_events(), _sample_snapshot(), tag="보스A")
+        repo.save_session(_sample_events(), _sample_snapshot(), tag="보스B")
+        repo.save_session(_sample_events(), _sample_snapshot(), tag="")
+
+        result = repo.list_sessions(tag_filter="보스A")
+        assert len(result) == 1
+        assert result[0]["tag"] == "보스A"
+
+    def test_filter_empty_returns_all(self, repo: SessionRepository) -> None:
+        """빈 필터는 전체를 반환한다."""
+        repo.save_session(_sample_events(), _sample_snapshot(), tag="보스")
+        repo.save_session(_sample_events(), _sample_snapshot())
+        result = repo.list_sessions(tag_filter="")
+        assert len(result) == 2
+
+    def test_migration_adds_tag_column(self, tmp_path: Path) -> None:
+        """기존 DB에 tag 컬럼이 없으면 마이그레이션한다."""
+        db_path = tmp_path / "old.db"
+        import sqlite3
+        conn = sqlite3.connect(str(db_path))
+        # tag 컬럼 없는 스키마로 테이블 생성
+        conn.execute("""CREATE TABLE sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            start_time REAL NOT NULL,
+            end_time REAL,
+            total_damage INTEGER DEFAULT 0,
+            peak_dps REAL DEFAULT 0.0,
+            avg_dps REAL DEFAULT 0.0,
+            event_count INTEGER DEFAULT 0,
+            duration REAL DEFAULT 0.0
+        )""")
+        conn.execute(
+            "INSERT INTO sessions (start_time, end_time, total_damage) VALUES (1.0, 2.0, 100)"
+        )
+        conn.commit()
+        conn.close()
+
+        # SessionRepository가 마이그레이션을 수행해야 한다
+        repo = SessionRepository(db_path=db_path)
+        sessions = repo.list_sessions()
+        assert len(sessions) == 1
+        assert sessions[0]["tag"] == ""

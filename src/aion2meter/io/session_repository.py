@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS sessions (
     peak_dps    REAL DEFAULT 0.0,
     avg_dps     REAL DEFAULT 0.0,
     event_count INTEGER DEFAULT 0,
-    duration    REAL DEFAULT 0.0
+    duration    REAL DEFAULT 0.0,
+    tag         TEXT DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS session_events (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -58,9 +59,18 @@ class SessionRepository:
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA foreign_keys = ON")
         self._conn.executescript(_SCHEMA)
+        self._migrate()
+
+    def _migrate(self) -> None:
+        """기존 DB에 누락된 컬럼을 추가한다."""
+        cur = self._conn.execute("PRAGMA table_info(sessions)")
+        columns = {row[1] for row in cur.fetchall()}
+        if "tag" not in columns:
+            self._conn.execute("ALTER TABLE sessions ADD COLUMN tag TEXT DEFAULT ''")
+            self._conn.commit()
 
     def save_session(
-        self, events: list[DamageEvent], snapshot: DpsSnapshot
+        self, events: list[DamageEvent], snapshot: DpsSnapshot, tag: str = ""
     ) -> int:
         """세션, 이벤트, 스킬 요약을 저장하고 세션 ID를 반환한다."""
         start_time = events[0].timestamp if events else 0.0
@@ -70,8 +80,8 @@ class SessionRepository:
 
         cur = self._conn.execute(
             "INSERT INTO sessions "
-            "(start_time, end_time, total_damage, peak_dps, avg_dps, event_count, duration) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "(start_time, end_time, total_damage, peak_dps, avg_dps, event_count, duration, tag) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 start_time,
                 end_time,
@@ -80,6 +90,7 @@ class SessionRepository:
                 avg_dps,
                 snapshot.event_count,
                 duration,
+                tag,
             ),
         )
         session_id: int = cur.lastrowid  # type: ignore[assignment]
@@ -137,12 +148,18 @@ class SessionRepository:
         self._conn.commit()
         return session_id
 
-    def list_sessions(self, limit: int = 50) -> list[dict]:
+    def list_sessions(self, limit: int = 50, tag_filter: str = "") -> list[dict]:
         """세션 목록을 최신 순으로 반환한다."""
-        cur = self._conn.execute(
-            "SELECT * FROM sessions ORDER BY start_time DESC LIMIT ?",
-            (limit,),
-        )
+        if tag_filter:
+            cur = self._conn.execute(
+                "SELECT * FROM sessions WHERE tag = ? ORDER BY start_time DESC LIMIT ?",
+                (tag_filter, limit),
+            )
+        else:
+            cur = self._conn.execute(
+                "SELECT * FROM sessions ORDER BY start_time DESC LIMIT ?",
+                (limit,),
+            )
         return [dict(row) for row in cur.fetchall()]
 
     def get_session(self, session_id: int) -> dict | None:

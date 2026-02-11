@@ -83,6 +83,32 @@ class SettingsDialog(QDialog):
         self._auto_update_check.setChecked(config.auto_update_check)
         form.addRow("", self._auto_update_check)
 
+        # Discord 섹션
+        form.addRow(QLabel("── Discord ──"), QLabel(""))
+
+        self._webhook_url_edit = QLineEdit(config.discord_webhook_url)
+        self._webhook_url_edit.setPlaceholderText("https://discord.com/api/webhooks/...")
+        form.addRow("Webhook URL:", self._webhook_url_edit)
+
+        self._discord_auto_send_check = QCheckBox("전투 종료 시 자동 전송")
+        self._discord_auto_send_check.setChecked(config.discord_auto_send)
+        form.addRow("", self._discord_auto_send_check)
+
+        # DPS 알림 섹션
+        form.addRow(QLabel("── DPS 알림 ──"), QLabel(""))
+
+        self._alert_threshold_spin = QSpinBox()
+        self._alert_threshold_spin.setRange(0, 999999)
+        self._alert_threshold_spin.setValue(int(config.dps_alert_threshold))
+        self._alert_threshold_spin.setSuffix(" (0=비활성)")
+        form.addRow("DPS 임계값:", self._alert_threshold_spin)
+
+        self._alert_cooldown_spin = QSpinBox()
+        self._alert_cooldown_spin.setRange(1, 300)
+        self._alert_cooldown_spin.setValue(int(config.dps_alert_cooldown))
+        self._alert_cooldown_spin.setSuffix("초")
+        form.addRow("알림 쿨다운:", self._alert_cooldown_spin)
+
         layout.addLayout(form)
 
         # 확인/취소 버튼
@@ -120,5 +146,9 @@ class SettingsDialog(QDialog):
         self._config.hotkey_reset = self._hotkey_reset_edit.text()
         self._config.hotkey_breakdown = self._hotkey_breakdown_edit.text()
         self._config.auto_update_check = self._auto_update_check.isChecked()
+        self._config.discord_webhook_url = self._webhook_url_edit.text().strip()
+        self._config.discord_auto_send = self._discord_auto_send_check.isChecked()
+        self._config.dps_alert_threshold = float(self._alert_threshold_spin.value())
+        self._config.dps_alert_cooldown = float(self._alert_cooldown_spin.value())
         self.settings_changed.emit(self._config)
         self.accept()

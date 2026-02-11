@@ -36,6 +36,8 @@ class TrayIcon(QSystemTrayIcon):
     quit_app = pyqtSignal()
     open_sessions = pyqtSignal()
     check_update = pyqtSignal()
+    switch_profile = pyqtSignal(str)
+    save_profile = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(_create_default_icon(), parent)
@@ -71,6 +73,10 @@ class TrayIcon(QSystemTrayIcon):
         update_action.triggered.connect(self.check_update.emit)
         menu.addAction(update_action)
 
+        # 프로파일 서브메뉴
+        self._profile_menu = QMenu("프로파일", menu)
+        menu.addMenu(self._profile_menu)
+
         menu.addSeparator()
 
         settings_action = QAction("설정", menu)
@@ -83,6 +89,20 @@ class TrayIcon(QSystemTrayIcon):
 
         self.setContextMenu(menu)
         self.activated.connect(self._on_activated)
+
+    def update_profile_menu(self, names: list[str], active: str) -> None:
+        """프로파일 메뉴를 갱신한다."""
+        self._profile_menu.clear()
+        for name in names:
+            prefix = "\u25cf " if name == active else ""
+            action = QAction(f"{prefix}{name}", self._profile_menu)
+            action.triggered.connect(lambda checked, n=name: self.switch_profile.emit(n))
+            self._profile_menu.addAction(action)
+        if names:
+            self._profile_menu.addSeparator()
+        save_action = QAction("현재 설정 저장...", self._profile_menu)
+        save_action.triggered.connect(self.save_profile.emit)
+        self._profile_menu.addAction(save_action)
 
     def _on_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
         if reason == QSystemTrayIcon.ActivationReason.DoubleClick:

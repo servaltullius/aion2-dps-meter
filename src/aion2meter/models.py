@@ -108,6 +108,10 @@ class AppConfig:
     hotkey_reset: str = "<ctrl>+<shift>+r"
     hotkey_breakdown: str = "<ctrl>+<shift>+b"
     auto_update_check: bool = True
+    discord_webhook_url: str = ""
+    discord_auto_send: bool = False
+    dps_alert_threshold: float = 0.0
+    dps_alert_cooldown: float = 10.0
     color_ranges: list[ColorRange] = field(default_factory=list)
 
     @classmethod

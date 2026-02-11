@@ -197,3 +197,40 @@ class TestHotkeyConfig:
         assert loaded.hotkey_overlay == "<ctrl>+<alt>+d"
         assert loaded.hotkey_reset == "<ctrl>+<alt>+r"
         assert loaded.hotkey_breakdown == "<ctrl>+<alt>+b"
+
+
+class TestDiscordConfig:
+    """Discord 설정 직렬화/역직렬화."""
+
+    def test_default_discord_config(self):
+        config = AppConfig()
+        assert config.discord_webhook_url == ""
+        assert config.discord_auto_send is False
+
+    def test_discord_config_roundtrip(self, tmp_path):
+        config = AppConfig(
+            discord_webhook_url="https://discord.com/api/webhooks/123/abc",
+            discord_auto_send=True,
+        )
+        mgr = ConfigManager(default_path=tmp_path / "config.toml")
+        mgr.save(config)
+        loaded = mgr.load()
+        assert loaded.discord_webhook_url == "https://discord.com/api/webhooks/123/abc"
+        assert loaded.discord_auto_send is True
+
+
+class TestAlertConfig:
+    """DPS 알림 설정 직렬화/역직렬화."""
+
+    def test_default_alert_config(self):
+        config = AppConfig()
+        assert config.dps_alert_threshold == 0.0
+        assert config.dps_alert_cooldown == 10.0
+
+    def test_alert_config_roundtrip(self, tmp_path):
+        config = AppConfig(dps_alert_threshold=5000.0, dps_alert_cooldown=15.0)
+        mgr = ConfigManager(default_path=tmp_path / "config.toml")
+        mgr.save(config)
+        loaded = mgr.load()
+        assert loaded.dps_alert_threshold == 5000.0
+        assert loaded.dps_alert_cooldown == 15.0

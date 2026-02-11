@@ -72,6 +72,10 @@ class ConfigManager:
             hotkey_reset=str(data.get("hotkey_reset", "<ctrl>+<shift>+r")),
             hotkey_breakdown=str(data.get("hotkey_breakdown", "<ctrl>+<shift>+b")),
             auto_update_check=bool(data.get("auto_update_check", True)),
+            discord_webhook_url=str(data.get("discord_webhook_url", "")),
+            discord_auto_send=bool(data.get("discord_auto_send", False)),
+            dps_alert_threshold=float(data.get("dps_alert_threshold", 0.0)),
+            dps_alert_cooldown=float(data.get("dps_alert_cooldown", 10.0)),
             color_ranges=color_ranges,
         )
 
@@ -106,6 +110,10 @@ class ConfigManager:
         lines.append(f'hotkey_reset = "{config.hotkey_reset}"')
         lines.append(f'hotkey_breakdown = "{config.hotkey_breakdown}"')
         lines.append(f"auto_update_check = {'true' if config.auto_update_check else 'false'}")
+        lines.append(f'discord_webhook_url = "{config.discord_webhook_url}"')
+        lines.append(f"discord_auto_send = {'true' if config.discord_auto_send else 'false'}")
+        lines.append(f"dps_alert_threshold = {config.dps_alert_threshold}")
+        lines.append(f"dps_alert_cooldown = {config.dps_alert_cooldown}")
 
         if config.roi is not None:
             lines.append("")
