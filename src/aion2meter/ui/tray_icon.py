@@ -34,6 +34,7 @@ class TrayIcon(QSystemTrayIcon):
     save_log = pyqtSignal()
     open_settings = pyqtSignal()
     quit_app = pyqtSignal()
+    open_sessions = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(_create_default_icon(), parent)
@@ -60,6 +61,10 @@ class TrayIcon(QSystemTrayIcon):
         save_log_action = QAction("전투 로그 저장", menu)
         save_log_action.triggered.connect(self.save_log.emit)
         menu.addAction(save_log_action)
+
+        sessions_action = QAction("세션 기록", menu)
+        sessions_action.triggered.connect(self.open_sessions.emit)
+        menu.addAction(sessions_action)
 
         menu.addSeparator()
 

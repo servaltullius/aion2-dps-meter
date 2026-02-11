@@ -17,6 +17,8 @@ from aion2meter.ui.overlay import DpsOverlay
 from aion2meter.ui.roi_selector import RoiSelector
 from aion2meter.ui.settings_dialog import SettingsDialog
 from aion2meter.ui.tray_icon import TrayIcon
+from aion2meter.io.session_repository import SessionRepository
+from aion2meter.ui.session_report import SessionListDialog
 
 _LOG_DIR = Path.home() / "Documents" / "aion2meter" / "logs"
 
@@ -33,9 +35,12 @@ class App:
         self._config_manager = ConfigManager()
         self._config = self._config_manager.load()
 
+        self._session_repo = SessionRepository()
+
         # 파이프라인
         self._pipeline = DpsPipeline(config=self._config)
         self._pipeline.dps_updated.connect(self._on_dps_updated)
+        self._pipeline._calculator.set_on_reset(self._on_combat_ended)
 
         # UI
         self._overlay = DpsOverlay(
@@ -54,6 +59,7 @@ class App:
         self._tray.save_log.connect(self._save_log)
         self._tray.open_settings.connect(self._open_settings)
         self._tray.quit_app.connect(self._quit)
+        self._tray.open_sessions.connect(self._open_sessions)
         self._tray.show()
 
         self._roi_selector: RoiSelector | None = None
@@ -108,12 +114,27 @@ class App:
     def _reset_combat(self) -> None:
         self._pipeline.reset_combat()
 
+    def _on_combat_ended(self, events: list, snapshot: object) -> None:
+        """전투 종료(자동/수동 리셋) 시 세션을 저장한다."""
+        if events:
+            self._session_repo.save_session(events, snapshot)
+
+    def _open_sessions(self) -> None:
+        dlg = SessionListDialog(self._session_repo)
+        dlg.exec()
+
     def _quit(self) -> None:
         # 오버레이 위치 저장
         pos = self._overlay.pos()
         self._config.overlay_x = pos.x()
         self._config.overlay_y = pos.y()
         self._config_manager.save(self._config)
+
+        # 활성 세션 저장
+        events = self._pipeline.get_event_history()
+        if events:
+            snapshot = self._pipeline._calculator.add_events([])
+            self._session_repo.save_session(events, snapshot)
 
         self._pipeline.stop()
         self._app.quit()

@@ -25,6 +25,7 @@ class RealtimeDpsCalculator:
         self._first_timestamp: float | None = None
         self._last_timestamp: float | None = None
         self._event_history: list[DamageEvent] = []
+        self._on_reset_callback: object | None = None
 
     def add_events(self, events: list[DamageEvent]) -> DpsSnapshot:
         """이벤트 목록을 추가하고 현재 DPS 스냅샷을 반환한다."""
@@ -74,12 +75,27 @@ class RealtimeDpsCalculator:
         """현재 전투의 이벤트 히스토리를 반환한다."""
         return list(self._event_history)
 
+    def set_on_reset(self, callback: object) -> None:
+        """자동/수동 리셋 시 호출될 콜백을 설정한다. callback(events, snapshot)."""
+        self._on_reset_callback = callback
+
     def reset(self) -> None:
         """모든 상태를 초기화한다."""
         self._reset_state()
 
     def _reset_state(self) -> None:
         """내부 상태를 초기화한다."""
+        if self._on_reset_callback and self._event_history:
+            snapshot = DpsSnapshot(
+                dps=self._total_damage / max(self._calc_elapsed(), 0.001) if self._total_damage > 0 else 0.0,
+                total_damage=self._total_damage,
+                elapsed_seconds=self._calc_elapsed(),
+                peak_dps=self._peak_dps,
+                combat_active=False,
+                skill_breakdown=dict(self._skill_breakdown),
+                event_count=self._event_count,
+            )
+            self._on_reset_callback(list(self._event_history), snapshot)
         logger.info("전투 리셋")
         self._total_damage = 0
         self._event_count = 0
