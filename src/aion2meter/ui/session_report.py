@@ -227,7 +227,7 @@ class SessionListDialog(QDialog):
             return
         from aion2meter.ui.session_compare import SessionCompareDialog
 
-        dlg = SessionCompareDialog(self._repo, ids, self)
+        dlg = SessionCompareDialog(self._repo, ids[0], ids[1], parent=self)
         dlg.exec()
 
     def _delete_selected(self) -> None:
