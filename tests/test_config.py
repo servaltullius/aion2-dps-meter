@@ -25,6 +25,11 @@ class TestConfigLoad:
         assert cfg.ocr_engine == "winocr"
         assert cfg.idle_timeout == 5.0
         assert cfg.overlay_opacity == 0.75
+        assert cfg.overlay_width == 220
+        assert cfg.overlay_height == 120
+        assert cfg.overlay_x is None
+        assert cfg.overlay_y is None
+        assert cfg.overlay_bg_color == (0, 0, 0)
         assert cfg.roi is None
         assert len(cfg.color_ranges) == 5
 
@@ -143,3 +148,29 @@ class TestConfigSave:
         reloaded = manager.load()
         assert reloaded.roi is not None
         assert reloaded.roi.left == 50
+
+    def test_save_and_reload_overlay_fields(self, manager: ConfigManager) -> None:
+        """오버레이 확장 필드가 저장/로드된다."""
+        cfg = AppConfig(
+            overlay_width=300,
+            overlay_height=200,
+            overlay_x=100,
+            overlay_y=50,
+            overlay_bg_color=(30, 30, 60),
+            color_ranges=AppConfig.default_color_ranges(),
+        )
+        manager.save(cfg)
+        loaded = manager.load()
+        assert loaded.overlay_width == 300
+        assert loaded.overlay_height == 200
+        assert loaded.overlay_x == 100
+        assert loaded.overlay_y == 50
+        assert loaded.overlay_bg_color == (30, 30, 60)
+
+    def test_save_overlay_without_position(self, manager: ConfigManager) -> None:
+        """overlay_x/y가 None이면 TOML에 포함되지 않는다."""
+        cfg = AppConfig(color_ranges=AppConfig.default_color_ranges())
+        manager.save(cfg)
+        toml_text = manager.default_path.read_text(encoding="utf-8")
+        assert "overlay_x" not in toml_text
+        assert "overlay_y" not in toml_text

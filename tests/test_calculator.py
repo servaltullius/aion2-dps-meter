@@ -291,3 +291,50 @@ class TestReturnType:
         calc = RealtimeDpsCalculator()
         result = calc.add_events([_make_event()])
         assert isinstance(result, DpsSnapshot)
+
+
+class TestEventHistory:
+    """이벤트 히스토리 추적."""
+
+    def test_empty_history_initially(self):
+        calc = RealtimeDpsCalculator()
+        assert calc.get_event_history() == []
+
+    def test_history_tracks_events(self):
+        calc = RealtimeDpsCalculator()
+        e1 = _make_event(timestamp=1.0, skill="검격", damage=1000)
+        e2 = _make_event(timestamp=2.0, skill="마법", damage=2000)
+        calc.add_events([e1, e2])
+        history = calc.get_event_history()
+        assert len(history) == 2
+        assert history[0] is e1
+        assert history[1] is e2
+
+    def test_history_across_batches(self):
+        calc = RealtimeDpsCalculator()
+        calc.add_events([_make_event(timestamp=1.0)])
+        calc.add_events([_make_event(timestamp=2.0)])
+        assert len(calc.get_event_history()) == 2
+
+    def test_history_cleared_on_reset(self):
+        calc = RealtimeDpsCalculator()
+        calc.add_events([_make_event(timestamp=1.0)])
+        calc.reset()
+        assert calc.get_event_history() == []
+
+    def test_history_cleared_on_auto_reset(self):
+        calc = RealtimeDpsCalculator(idle_timeout=5.0)
+        calc.add_events([_make_event(timestamp=1.0, damage=1000)])
+        # idle_timeout 초과 → 자동 리셋
+        calc.add_events([_make_event(timestamp=20.0, damage=500)])
+        history = calc.get_event_history()
+        assert len(history) == 1
+        assert history[0].damage == 500
+
+    def test_history_returns_copy(self):
+        calc = RealtimeDpsCalculator()
+        calc.add_events([_make_event(timestamp=1.0)])
+        h1 = calc.get_event_history()
+        h2 = calc.get_event_history()
+        assert h1 is not h2
+        assert h1 == h2

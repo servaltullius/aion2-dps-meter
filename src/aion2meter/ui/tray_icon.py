@@ -30,6 +30,9 @@ class TrayIcon(QSystemTrayIcon):
     toggle_overlay = pyqtSignal()
     select_roi = pyqtSignal()
     reset_combat = pyqtSignal()
+    toggle_breakdown = pyqtSignal()
+    save_log = pyqtSignal()
+    open_settings = pyqtSignal()
     quit_app = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -42,6 +45,10 @@ class TrayIcon(QSystemTrayIcon):
         toggle_action.triggered.connect(self.toggle_overlay.emit)
         menu.addAction(toggle_action)
 
+        breakdown_action = QAction("스킬 상세", menu)
+        breakdown_action.triggered.connect(self.toggle_breakdown.emit)
+        menu.addAction(breakdown_action)
+
         roi_action = QAction("ROI 영역 설정", menu)
         roi_action.triggered.connect(self.select_roi.emit)
         menu.addAction(roi_action)
@@ -50,7 +57,15 @@ class TrayIcon(QSystemTrayIcon):
         reset_action.triggered.connect(self.reset_combat.emit)
         menu.addAction(reset_action)
 
+        save_log_action = QAction("전투 로그 저장", menu)
+        save_log_action.triggered.connect(self.save_log.emit)
+        menu.addAction(save_log_action)
+
         menu.addSeparator()
+
+        settings_action = QAction("설정", menu)
+        settings_action.triggered.connect(self.open_settings.emit)
+        menu.addAction(settings_action)
 
         quit_action = QAction("종료", menu)
         quit_action.triggered.connect(self.quit_app.emit)

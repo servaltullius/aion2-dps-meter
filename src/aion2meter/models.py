@@ -98,6 +98,11 @@ class AppConfig:
     ocr_engine: str = "winocr"
     idle_timeout: float = 5.0
     overlay_opacity: float = 0.75
+    overlay_width: int = 220
+    overlay_height: int = 120
+    overlay_x: int | None = None
+    overlay_y: int | None = None
+    overlay_bg_color: tuple[int, int, int] = (0, 0, 0)
     color_ranges: list[ColorRange] = field(default_factory=list)
 
     @classmethod

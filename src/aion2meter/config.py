@@ -49,12 +49,25 @@ class ConfigManager:
         if not color_ranges:
             color_ranges = AppConfig.default_color_ranges()
 
+        # overlay 위치
+        overlay_x = data.get("overlay_x")
+        overlay_y = data.get("overlay_y")
+
+        # overlay 배경색
+        bg_raw = data.get("overlay_bg_color", [0, 0, 0])
+        overlay_bg_color = tuple(bg_raw)  # type: ignore[arg-type]
+
         return AppConfig(
             roi=roi,
             fps=int(data.get("fps", 10)),
             ocr_engine=str(data.get("ocr_engine", "winocr")),
             idle_timeout=float(data.get("idle_timeout", 5.0)),
             overlay_opacity=float(data.get("overlay_opacity", 0.75)),
+            overlay_width=int(data.get("overlay_width", 220)),
+            overlay_height=int(data.get("overlay_height", 120)),
+            overlay_x=int(overlay_x) if overlay_x is not None else None,
+            overlay_y=int(overlay_y) if overlay_y is not None else None,
+            overlay_bg_color=overlay_bg_color,
             color_ranges=color_ranges,
         )
 
@@ -77,6 +90,14 @@ class ConfigManager:
         lines.append(f'ocr_engine = "{config.ocr_engine}"')
         lines.append(f"idle_timeout = {config.idle_timeout}")
         lines.append(f"overlay_opacity = {config.overlay_opacity}")
+        lines.append(f"overlay_width = {config.overlay_width}")
+        lines.append(f"overlay_height = {config.overlay_height}")
+        if config.overlay_x is not None:
+            lines.append(f"overlay_x = {config.overlay_x}")
+        if config.overlay_y is not None:
+            lines.append(f"overlay_y = {config.overlay_y}")
+        bg = config.overlay_bg_color
+        lines.append(f"overlay_bg_color = [{bg[0]}, {bg[1]}, {bg[2]}]")
 
         if config.roi is not None:
             lines.append("")

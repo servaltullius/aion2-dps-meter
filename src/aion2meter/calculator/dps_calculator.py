@@ -21,6 +21,7 @@ class RealtimeDpsCalculator:
         self._skill_breakdown: dict[str, int] = {}
         self._first_timestamp: float | None = None
         self._last_timestamp: float | None = None
+        self._event_history: list[DamageEvent] = []
 
     def add_events(self, events: list[DamageEvent]) -> DpsSnapshot:
         """이벤트 목록을 추가하고 현재 DPS 스냅샷을 반환한다."""
@@ -40,6 +41,7 @@ class RealtimeDpsCalculator:
             self._total_damage += event.damage
             self._event_count += 1
             self._last_timestamp = event.timestamp
+            self._event_history.append(event)
 
             # 스킬별 분류
             self._skill_breakdown[event.skill] = (
@@ -65,6 +67,10 @@ class RealtimeDpsCalculator:
             event_count=self._event_count,
         )
 
+    def get_event_history(self) -> list[DamageEvent]:
+        """현재 전투의 이벤트 히스토리를 반환한다."""
+        return list(self._event_history)
+
     def reset(self) -> None:
         """모든 상태를 초기화한다."""
         self._reset_state()
@@ -77,6 +83,7 @@ class RealtimeDpsCalculator:
         self._skill_breakdown = {}
         self._first_timestamp = None
         self._last_timestamp = None
+        self._event_history = []
 
     def _calc_elapsed(self) -> float:
         """경과 시간(초)을 계산한다."""

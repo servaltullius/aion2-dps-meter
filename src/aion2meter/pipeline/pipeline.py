@@ -193,6 +193,10 @@ class DpsPipeline(QObject):
         """전투 데이터 리셋."""
         self._calculator.reset()
 
+    def get_event_history(self) -> list:
+        """현재 전투의 이벤트 히스토리를 반환한다."""
+        return self._calculator.get_event_history()
+
     @property
     def is_running(self) -> bool:
         return self._capture_worker is not None and self._capture_worker.isRunning()
